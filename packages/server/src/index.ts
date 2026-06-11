@@ -108,50 +108,32 @@ app.get('/api/attachments/:id', async (c) => {
 
 const port = parseInt(process.env.PORT || '3000', 10);
 
-console.log(`[DEBUG] NODE_ENV = "${process.env.NODE_ENV}"`);
-console.log(`[DEBUG] CWD = "${process.cwd()}"`);
+// === Serve frontend static files if web build exists ===
+const webDir = join(process.cwd(), 'web');
+const webIndexPath = join(webDir, 'index.html');
+const hasWebBuild = await Bun.file(webIndexPath).exists();
 
-// === Production: Serve frontend static files via notFound handler ===
-if (process.env.NODE_ENV === 'production') {
-  const webDir = join(process.cwd(), 'web');
-  console.log(`[DEBUG] webDir = "${webDir}"`);
-
-  // Check if web dir exists at startup
-  const indexCheck = Bun.file(join(webDir, 'index.html'));
-  indexCheck.exists().then(exists => {
-    console.log(`[DEBUG] ${join(webDir, 'index.html')} exists = ${exists}`);
-  });
+if (hasWebBuild) {
+  console.log(`📁 Serving static files from ${webDir}`);
 
   app.notFound(async (c) => {
     const reqPath = new URL(c.req.url).pathname;
-    console.log(`[DEBUG notFound] reqPath = "${reqPath}"`);
 
     // Try to serve the exact file
     const filePath = join(webDir, reqPath === '/' ? 'index.html' : reqPath);
     const file = Bun.file(filePath);
-    const exists = await file.exists();
-    console.log(`[DEBUG notFound] filePath = "${filePath}", exists = ${exists}`);
-
-    if (exists) {
+    if (await file.exists()) {
       return new Response(file.stream(), {
         headers: { 'Content-Type': file.type || 'application/octet-stream' },
       });
     }
 
     // SPA fallback: serve index.html for client-side routing
-    const indexFile = Bun.file(join(webDir, 'index.html'));
-    const indexExists = await indexFile.exists();
-    console.log(`[DEBUG notFound] SPA fallback, index exists = ${indexExists}`);
-    if (indexExists) {
-      return new Response(indexFile.stream(), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      });
-    }
-
-    return c.text('Not Found', 404);
+    const indexFile = Bun.file(webIndexPath);
+    return new Response(indexFile.stream(), {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
   });
-} else {
-  console.log(`[DEBUG] NOT in production mode, skipping static file serving`);
 }
 
 console.log(`\u{1F340} Clover Book server running on http://localhost:${port}`);
