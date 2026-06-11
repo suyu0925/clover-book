@@ -108,11 +108,11 @@ app.get('/api/attachments/:id', async (c) => {
 
 const port = parseInt(process.env.PORT || '3000', 10);
 
-// === Production: Serve frontend static files ===
+// === Production: Serve frontend static files via notFound handler ===
 if (process.env.NODE_ENV === 'production') {
   const webDir = join(process.cwd(), 'web');
 
-  app.get('/*', async (c) => {
+  app.notFound(async (c) => {
     const reqPath = new URL(c.req.url).pathname;
 
     // Try to serve the exact file
