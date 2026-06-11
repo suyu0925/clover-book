@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
-import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings, Wallet, BarChart3, PiggyBank, Repeat } from 'lucide-react';
+import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings, Wallet, BarChart3, PiggyBank, Repeat, FileDown } from 'lucide-react';
 
 interface Props {
   ledgerId: string;
@@ -10,10 +10,11 @@ interface Props {
   onViewStats: () => void;
   onViewBudget: () => void;
   onViewRecurring: () => void;
+  onImport: () => void;
   onSelectTransaction: (id: string) => void;
 }
 
-export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts, onViewStats, onViewBudget, onViewRecurring, onSelectTransaction }: Props) {
+export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts, onViewStats, onViewBudget, onViewRecurring, onImport, onSelectTransaction }: Props) {
   const [showAdd, setShowAdd] = useState(false);
 
   const { data: ledger } = trpc.ledger.get.useQuery({ ledgerId });
@@ -65,6 +66,13 @@ export function TransactionPage({ ledgerId, onBack, onManageCategories, onManage
             className="p-1.5 text-gray-400 hover:text-gray-600"
           >
             <Settings size={20} />
+          </button>
+          <button
+            onClick={onImport}
+            className="p-1.5 text-gray-400 hover:text-gray-600"
+            title="导入数据"
+          >
+            <FileDown size={20} />
           </button>
           <button
             onClick={() => setShowAdd(true)}
