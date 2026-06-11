@@ -8,6 +8,7 @@ import { TransactionPage } from './pages/TransactionPage';
 import { CategoryPage } from './pages/CategoryPage';
 import { AccountPage } from './pages/AccountPage';
 import { StatsPage } from './pages/StatsPage';
+import { BudgetPage } from './pages/BudgetPage';
 import './styles/globals.css';
 
 type Page =
@@ -15,7 +16,8 @@ type Page =
   | { type: 'transactions'; ledgerId: string }
   | { type: 'categories'; ledgerId: string }
   | { type: 'accounts'; ledgerId: string }
-  | { type: 'stats'; ledgerId: string };
+  | { type: 'stats'; ledgerId: string }
+  | { type: 'budget'; ledgerId: string };
 
 function AppContent() {
   const { user } = useAuth();
@@ -32,6 +34,7 @@ function AppContent() {
           onManageCategories={() => setPage({ type: 'categories', ledgerId: page.ledgerId })}
           onManageAccounts={() => setPage({ type: 'accounts', ledgerId: page.ledgerId })}
           onViewStats={() => setPage({ type: 'stats', ledgerId: page.ledgerId })}
+          onViewBudget={() => setPage({ type: 'budget', ledgerId: page.ledgerId })}
         />
       );
     case 'categories':
@@ -51,6 +54,13 @@ function AppContent() {
     case 'stats':
       return (
         <StatsPage
+          ledgerId={page.ledgerId}
+          onBack={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
+        />
+      );
+    case 'budget':
+      return (
+        <BudgetPage
           ledgerId={page.ledgerId}
           onBack={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
         />
