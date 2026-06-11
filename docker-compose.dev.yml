@@ -1,0 +1,22 @@
+# 开发环境：仅启动 PostgreSQL
+# 用法: docker compose -f docker-compose.dev.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: clover-book-db
+    environment:
+      POSTGRES_USER: clover
+      POSTGRES_PASSWORD: clover
+      POSTGRES_DB: cloverbook
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clover -d cloverbook"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:

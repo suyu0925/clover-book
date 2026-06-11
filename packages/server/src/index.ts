@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { serveStatic } from 'hono/bun';
 import { trpcServer } from '@hono/trpc-server';
 import { appRouter } from './trpc/router';
 import { createContext } from './trpc/context';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, stat } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { jwtVerify } from 'jose';
@@ -107,6 +108,23 @@ app.get('/api/attachments/:id', async (c) => {
 });
 
 const port = parseInt(process.env.PORT || '3000', 10);
+
+// === Production: Serve frontend static files ===
+if (process.env.NODE_ENV === 'production') {
+  const webDir = join(process.cwd(), 'web');
+
+  // Serve static assets (JS, CSS, images)
+  app.use('/assets/*', serveStatic({ root: webDir }));
+
+  // SPA fallback: serve index.html for all non-API routes
+  app.get('*', async (c) => {
+    const indexPath = join(webDir, 'index.html');
+    const file = Bun.file(indexPath);
+    return new Response(file.stream(), {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+  });
+}
 
 console.log(`\u{1F340} Clover Book server running on http://localhost:${port}`);
 

@@ -1,4 +1,5 @@
 services:
+  # PostgreSQL 数据库
   postgres:
     image: postgres:16-alpine
     container_name: clover-book-db
@@ -16,5 +17,29 @@ services:
       timeout: 3s
       retries: 5
 
+  # Clover Book 应用（API + 前端静态文件）
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clover-book-app
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://clover:clover@postgres:5432/cloverbook
+      JWT_SECRET: ${JWT_SECRET:-clover-book-production-secret-change-me}
+      DATA_DIR: /app/data
+      UPLOAD_DIR: /app/data/uploads
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    volumes:
+      - appdata:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  appdata:
