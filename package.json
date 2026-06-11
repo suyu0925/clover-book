@@ -1,0 +1,11 @@
+{
+  "name": "clover-book",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev:server": "bun run --filter @clover-book/server dev",
+    "dev:web": "bun run --filter @clover-book/web dev",
+    "dev": "bun run dev:server & bun run dev:web",
+    "build": "bun run --filter @clover-book/core build && bun run --filter @clover-book/server build && bun run --filter @clover-book/web build"
+  }
+}
