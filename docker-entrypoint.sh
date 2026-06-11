@@ -21,4 +21,5 @@ bunx drizzle-kit push --force
 cd /app
 
 echo "🚀 Starting server on port ${PORT:-3000}..."
+export NODE_ENV=production
 exec bun /app/server/index.js
