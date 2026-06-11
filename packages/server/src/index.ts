@@ -1,10 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { serveStatic } from 'hono/bun';
 import { trpcServer } from '@hono/trpc-server';
 import { appRouter } from './trpc/router';
 import { createContext } from './trpc/context';
-import { mkdir, writeFile, stat } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { jwtVerify } from 'jose';
@@ -113,16 +112,27 @@ const port = parseInt(process.env.PORT || '3000', 10);
 if (process.env.NODE_ENV === 'production') {
   const webDir = join(process.cwd(), 'web');
 
-  // Serve static assets (JS, CSS, images)
-  app.use('/assets/*', serveStatic({ root: webDir }));
+  app.get('/*', async (c) => {
+    const reqPath = new URL(c.req.url).pathname;
 
-  // SPA fallback: serve index.html for all non-API routes
-  app.get('*', async (c) => {
-    const indexPath = join(webDir, 'index.html');
-    const file = Bun.file(indexPath);
-    return new Response(file.stream(), {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
+    // Try to serve the exact file
+    const filePath = join(webDir, reqPath === '/' ? 'index.html' : reqPath);
+    const file = Bun.file(filePath);
+    if (await file.exists()) {
+      return new Response(file.stream(), {
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      });
+    }
+
+    // SPA fallback: serve index.html for client-side routing
+    const indexFile = Bun.file(join(webDir, 'index.html'));
+    if (await indexFile.exists()) {
+      return new Response(indexFile.stream(), {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
+
+    return c.text('Not Found', 404);
   });
 }
 
