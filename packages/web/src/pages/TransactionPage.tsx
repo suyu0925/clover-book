@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
-import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings, Wallet, BarChart3, PiggyBank, Repeat, FileDown } from 'lucide-react';
+import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings, Wallet, BarChart3, PiggyBank, Repeat, FileDown, Users } from 'lucide-react';
 
 interface Props {
   ledgerId: string;
@@ -11,10 +11,11 @@ interface Props {
   onViewBudget: () => void;
   onViewRecurring: () => void;
   onImport: () => void;
+  onViewMembers: () => void;
   onSelectTransaction: (id: string) => void;
 }
 
-export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts, onViewStats, onViewBudget, onViewRecurring, onImport, onSelectTransaction }: Props) {
+export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts, onViewStats, onViewBudget, onViewRecurring, onImport, onViewMembers, onSelectTransaction }: Props) {
   const [showAdd, setShowAdd] = useState(false);
 
   const { data: ledger } = trpc.ledger.get.useQuery({ ledgerId });
@@ -73,6 +74,13 @@ export function TransactionPage({ ledgerId, onBack, onManageCategories, onManage
             title="导入数据"
           >
             <FileDown size={20} />
+          </button>
+          <button
+            onClick={onViewMembers}
+            className="p-1.5 text-gray-400 hover:text-gray-600"
+            title="成员管理"
+          >
+            <Users size={20} />
           </button>
           <button
             onClick={() => setShowAdd(true)}

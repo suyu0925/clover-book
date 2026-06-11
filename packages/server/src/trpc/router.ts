@@ -9,6 +9,7 @@ import { budgetRouter } from './routers/budget';
 import { recurringRouter } from './routers/recurring';
 import { importRouter } from './routers/import';
 import { attachmentRouter } from './routers/attachment';
+import { memberRouter } from './routers/member';
 
 export const appRouter = router({
   auth: authRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   recurring: recurringRouter,
   import: importRouter,
   attachment: attachmentRouter,
+  member: memberRouter,
 });
 
 export type AppRouter = typeof appRouter;
