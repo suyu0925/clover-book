@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
-import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings } from 'lucide-react';
+import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings, Wallet } from 'lucide-react';
 
 interface Props {
   ledgerId: string;
   onBack: () => void;
   onManageCategories: () => void;
+  onManageAccounts: () => void;
 }
 
-export function TransactionPage({ ledgerId, onBack, onManageCategories }: Props) {
+export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts }: Props) {
   const [showAdd, setShowAdd] = useState(false);
 
   const { data: ledger } = trpc.ledger.get.useQuery({ ledgerId });
@@ -27,6 +28,13 @@ export function TransactionPage({ ledgerId, onBack, onManageCategories }: Props)
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-lg font-semibold flex-1 truncate">{ledger?.name}</h1>
+          <button
+            onClick={onManageAccounts}
+            className="p-1.5 text-gray-400 hover:text-gray-600"
+            title="账户管理"
+          >
+            <Wallet size={20} />
+          </button>
           <button
             onClick={onManageCategories}
             className="p-1.5 text-gray-400 hover:text-gray-600"

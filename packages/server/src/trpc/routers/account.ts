@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { eq, and } from 'drizzle-orm';
 import { db, schema } from '../../db';
 import { z } from 'zod';
-import { appendAccount } from '../../beancount/file-manager';
+import { appendAccount, closeAccount } from '../../beancount/file-manager';
 
 /** 检查用户是否有权访问账本 */
 async function assertLedgerAccess(ledgerId: string, userId: string) {
@@ -59,6 +59,88 @@ const accountRouter = router({
     }
 
     return account;
+  }),
+
+  update: protectedProcedure.input(z.object({
+    id: z.string().uuid(),
+    ledgerId: z.string().uuid(),
+    displayName: z.string().max(100).optional(),
+  })).mutation(async ({ input, ctx }) => {
+    await assertLedgerAccess(input.ledgerId, ctx.user.id);
+
+    const account = await db.query.accounts.findFirst({
+      where: and(eq(schema.accounts.id, input.id), eq(schema.accounts.ledgerId, input.ledgerId)),
+    });
+    if (!account) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: '账户不存在' });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (input.displayName !== undefined) updateData.displayName = input.displayName;
+
+    if (Object.keys(updateData).length === 0) return account;
+
+    const [updated] = await db.update(schema.accounts)
+      .set(updateData)
+      .where(eq(schema.accounts.id, input.id))
+      .returning();
+    return updated;
+  }),
+
+  close: protectedProcedure.input(z.object({
+    id: z.string().uuid(),
+    ledgerId: z.string().uuid(),
+  })).mutation(async ({ input, ctx }) => {
+    await assertLedgerAccess(input.ledgerId, ctx.user.id);
+
+    const account = await db.query.accounts.findFirst({
+      where: and(eq(schema.accounts.id, input.id), eq(schema.accounts.ledgerId, input.ledgerId)),
+    });
+    if (!account) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: '账户不存在' });
+    }
+    if (account.isClosed) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: '账户已关闭' });
+    }
+
+    const [updated] = await db.update(schema.accounts)
+      .set({ isClosed: true })
+      .where(eq(schema.accounts.id, input.id))
+      .returning();
+
+    // 同步 close 指令到 Beancount 文件
+    const ledger = await db.query.ledgers.findFirst({
+      where: eq(schema.ledgers.id, input.ledgerId),
+    });
+    if (ledger) {
+      await closeAccount(ledger.filePath, account.name);
+    }
+
+    return updated;
+  }),
+
+  reopen: protectedProcedure.input(z.object({
+    id: z.string().uuid(),
+    ledgerId: z.string().uuid(),
+  })).mutation(async ({ input, ctx }) => {
+    await assertLedgerAccess(input.ledgerId, ctx.user.id);
+
+    const account = await db.query.accounts.findFirst({
+      where: and(eq(schema.accounts.id, input.id), eq(schema.accounts.ledgerId, input.ledgerId)),
+    });
+    if (!account) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: '账户不存在' });
+    }
+    if (!account.isClosed) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: '账户未关闭' });
+    }
+
+    const [updated] = await db.update(schema.accounts)
+      .set({ isClosed: false })
+      .where(eq(schema.accounts.id, input.id))
+      .returning();
+
+    return updated;
   }),
 });
 

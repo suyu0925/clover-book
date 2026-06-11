@@ -162,3 +162,30 @@ export async function appendAccounts(
     await writeFile(absPath, serialize(file), 'utf-8');
   });
 }
+
+/**
+ * 关闭账户（追加 close 指令）
+ */
+export async function closeAccount(
+  relativePath: string,
+  accountName: string
+): Promise<void> {
+  const absPath = resolveFilePath(relativePath);
+
+  await withFileLock(absPath, async () => {
+    const content = await readFile(absPath, 'utf-8');
+    const file = parse(content);
+
+    const today = new Date().toISOString().slice(0, 10);
+    file.accounts.push({
+      date: today,
+      action: 'close',
+      account: accountName,
+      currencies: [],
+    });
+    file.header.version += 1;
+    file.header.lastModified = new Date().toISOString();
+
+    await writeFile(absPath, serialize(file), 'utf-8');
+  });
+}

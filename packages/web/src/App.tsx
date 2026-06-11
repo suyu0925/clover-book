@@ -6,9 +6,14 @@ import { LoginPage } from './pages/LoginPage';
 import { LedgerListPage } from './pages/LedgerListPage';
 import { TransactionPage } from './pages/TransactionPage';
 import { CategoryPage } from './pages/CategoryPage';
+import { AccountPage } from './pages/AccountPage';
 import './styles/globals.css';
 
-type Page = { type: 'ledgers' } | { type: 'transactions'; ledgerId: string } | { type: 'categories'; ledgerId: string };
+type Page =
+  | { type: 'ledgers' }
+  | { type: 'transactions'; ledgerId: string }
+  | { type: 'categories'; ledgerId: string }
+  | { type: 'accounts'; ledgerId: string };
 
 function AppContent() {
   const { user } = useAuth();
@@ -23,11 +28,19 @@ function AppContent() {
           ledgerId={page.ledgerId}
           onBack={() => setPage({ type: 'ledgers' })}
           onManageCategories={() => setPage({ type: 'categories', ledgerId: page.ledgerId })}
+          onManageAccounts={() => setPage({ type: 'accounts', ledgerId: page.ledgerId })}
         />
       );
     case 'categories':
       return (
         <CategoryPage
+          ledgerId={page.ledgerId}
+          onBack={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
+        />
+      );
+    case 'accounts':
+      return (
+        <AccountPage
           ledgerId={page.ledgerId}
           onBack={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
         />
