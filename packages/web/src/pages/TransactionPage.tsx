@@ -9,9 +9,10 @@ interface Props {
   onManageAccounts: () => void;
   onViewStats: () => void;
   onViewBudget: () => void;
+  onSelectTransaction: (id: string) => void;
 }
 
-export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts, onViewStats, onViewBudget }: Props) {
+export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts, onViewStats, onViewBudget, onSelectTransaction }: Props) {
   const [showAdd, setShowAdd] = useState(false);
 
   const { data: ledger } = trpc.ledger.get.useQuery({ ledgerId });
@@ -83,7 +84,7 @@ export function TransactionPage({ ledgerId, onBack, onManageCategories, onManage
             <p className="text-center text-gray-400 py-8">暂无交易记录</p>
           )}
           {txResult?.items.map((tx) => (
-            <div key={tx.id} className="bg-white rounded-lg shadow p-3">
+            <div key={tx.id} className="bg-white rounded-lg shadow p-3 cursor-pointer hover:bg-gray-50 transition" onClick={() => onSelectTransaction(tx.id)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${

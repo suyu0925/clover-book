@@ -4,7 +4,7 @@ import { TRPCError } from '@trpc/server';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { db, schema } from '../../db';
 import { z } from 'zod';
-import { appendTransaction, removeTransaction } from '../../beancount/file-manager';
+import { appendTransaction, removeTransaction, updateTransaction } from '../../beancount/file-manager';
 
 /** 检查用户是否有权访问账本 */
 async function assertLedgerAccess(ledgerId: string, userId: string) {
@@ -160,6 +160,117 @@ const transactionRouter = router({
 
     await db.delete(schema.transactions).where(eq(schema.transactions.id, input.id));
     return { success: true };
+  }),
+
+  update: protectedProcedure.input(z.object({
+    id: z.string().uuid(),
+    date: z.string().optional(),
+    type: z.enum(['expense', 'income', 'transfer', 'reimbursement', 'borrow_in', 'borrow_out']).optional(),
+    amount: z.number().positive().optional(),
+    payee: z.string().max(200).nullable().optional(),
+    narration: z.string().optional(),
+    categoryId: z.string().uuid().nullable().optional(),
+    fromAccountId: z.string().uuid().optional(),
+    toAccountId: z.string().uuid().optional(),
+    tags: z.array(z.string()).optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const txn = await db.query.transactions.findFirst({
+      where: eq(schema.transactions.id, input.id),
+    });
+    if (!txn) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: '交易不存在' });
+    }
+
+    await assertLedgerAccess(txn.ledgerId, ctx.user.id);
+
+    // 更新交易主表
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (input.date !== undefined) updateData.date = input.date;
+    if (input.type !== undefined) updateData.type = input.type;
+    if (input.amount !== undefined) updateData.amount = input.amount.toString();
+    if (input.payee !== undefined) updateData.payee = input.payee;
+    if (input.narration !== undefined) updateData.narration = input.narration;
+    if (input.categoryId !== undefined) updateData.categoryId = input.categoryId;
+
+    const [updated] = await db.update(schema.transactions)
+      .set(updateData)
+      .where(eq(schema.transactions.id, input.id))
+      .returning();
+
+    // 更新分录（如果提供了账户或金额变更）
+    if (input.fromAccountId || input.toAccountId || input.amount !== undefined) {
+      await db.delete(schema.postings).where(eq(schema.postings.transactionId, input.id));
+      const amount = input.amount ?? parseFloat(txn.amount);
+      const fromAccountId = input.fromAccountId ?? (await db.query.postings.findFirst({
+        where: eq(schema.postings.transactionId, input.id),
+      }))?.accountId;
+
+      // 重新查询分录信息
+      const existingPostings = await db.query.postings.findMany({
+        where: eq(schema.postings.transactionId, input.id),
+      });
+
+      const from = input.fromAccountId || existingPostings.find(p => parseFloat(p.amount) < 0)?.accountId;
+      const to = input.toAccountId || existingPostings.find(p => parseFloat(p.amount) > 0)?.accountId;
+
+      if (from && to) {
+        await db.insert(schema.postings).values([
+          { transactionId: input.id, accountId: from, amount: (-amount).toString(), currency: 'CNY' },
+          { transactionId: input.id, accountId: to, amount: amount.toString(), currency: 'CNY' },
+        ]);
+      }
+    }
+
+    // 更新标签
+    if (input.tags !== undefined) {
+      await db.delete(schema.transactionTags).where(eq(schema.transactionTags.transactionId, input.id));
+      if (input.tags.length > 0) {
+        await db.insert(schema.transactionTags).values(
+          input.tags.map((tag) => ({ transactionId: input.id, tag })),
+        );
+      }
+    }
+
+    // 同步到 Beancount 文件
+    const ledger = await db.query.ledgers.findFirst({
+      where: eq(schema.ledgers.id, txn.ledgerId),
+    });
+    if (ledger) {
+      const postings = await db.query.postings.findMany({
+        where: eq(schema.postings.transactionId, input.id),
+      });
+
+      const postingData = await Promise.all(postings.map(async (p) => {
+        const acc = await db.query.accounts.findFirst({
+          where: eq(schema.accounts.id, p.accountId),
+        });
+        return {
+          account: acc?.name || 'Unknown',
+          amount: parseFloat(p.amount),
+          currency: p.currency,
+        };
+      }));
+
+      const categoryPath = updated.categoryId ? await getCategoryPath(updated.categoryId) : '';
+
+      await updateTransaction(ledger.filePath, input.id, {
+        date: updated.date,
+        flag: '*',
+        payee: updated.payee || undefined,
+        narration: updated.narration,
+        tags: (await db.query.transactionTags.findMany({
+          where: eq(schema.transactionTags.transactionId, input.id),
+        })).map(t => t.tag),
+        meta: {
+          id: updated.id,
+          created_by: updated.createdBy,
+          ...(categoryPath ? { category: categoryPath } : {}),
+        },
+        postings: postingData,
+      });
+    }
+
+    return updated;
   }),
 });
 

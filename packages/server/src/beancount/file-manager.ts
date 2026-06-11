@@ -122,6 +122,33 @@ export async function removeTransaction(
 }
 
 /**
+ * 更新交易（先删除旧的，再追加新的）
+ */
+export async function updateTransaction(
+  relativePath: string,
+  transactionId: string,
+  txn: TransactionDirective
+): Promise<void> {
+  const absPath = resolveFilePath(relativePath);
+
+  await withFileLock(absPath, async () => {
+    const content = await readFile(absPath, 'utf-8');
+    const file = parse(content);
+
+    // 删除旧的
+    file.transactions = file.transactions.filter(
+      (t) => t.meta['id'] !== transactionId
+    );
+    // 追加新的
+    file.transactions.push(txn);
+    file.header.version += 1;
+    file.header.lastModified = new Date().toISOString();
+
+    await writeFile(absPath, serialize(file), 'utf-8');
+  });
+}
+
+/**
  * 追加账户指令到 Beancount 文件
  */
 export async function appendAccount(
