@@ -50,6 +50,39 @@ const ledgerRouter = router({
       comment: a.displayName,
     })));
 
+    // 初始化默认分类（两级）
+    const expenseParents = [
+      { ledgerId: ledger.id, name: '餐饮', icon: 'utensils', sortOrder: 1 },
+      { ledgerId: ledger.id, name: '交通', icon: 'car', sortOrder: 2 },
+      { ledgerId: ledger.id, name: '购物', icon: 'shopping-bag', sortOrder: 3 },
+      { ledgerId: ledger.id, name: '居住', icon: 'home', sortOrder: 4 },
+      { ledgerId: ledger.id, name: '娱乐', icon: 'gamepad', sortOrder: 5 },
+      { ledgerId: ledger.id, name: '其他', icon: 'more-horizontal', sortOrder: 6 },
+    ];
+    const incomeParents = [
+      { ledgerId: ledger.id, name: '工资', icon: 'briefcase', sortOrder: 10 },
+      { ledgerId: ledger.id, name: '奖金', icon: 'gift', sortOrder: 11 },
+      { ledgerId: ledger.id, name: '其他收入', icon: 'plus-circle', sortOrder: 12 },
+    ];
+    const parentRows = await db.insert(schema.categories)
+      .values([...expenseParents, ...incomeParents])
+      .returning();
+
+    // 二级分类
+    const foodId = parentRows.find((r) => r.name === '餐饮')!.id;
+    const transportId = parentRows.find((r) => r.name === '交通')!.id;
+    const shoppingId = parentRows.find((r) => r.name === '购物')!.id;
+    await db.insert(schema.categories).values([
+      { ledgerId: ledger.id, name: '早餐', parentId: foodId, sortOrder: 1 },
+      { ledgerId: ledger.id, name: '午餐', parentId: foodId, sortOrder: 2 },
+      { ledgerId: ledger.id, name: '晚餐', parentId: foodId, sortOrder: 3 },
+      { ledgerId: ledger.id, name: '零食', parentId: foodId, sortOrder: 4 },
+      { ledgerId: ledger.id, name: '公交地铁', parentId: transportId, sortOrder: 1 },
+      { ledgerId: ledger.id, name: '打车', parentId: transportId, sortOrder: 2 },
+      { ledgerId: ledger.id, name: '日用品', parentId: shoppingId, sortOrder: 1 },
+      { ledgerId: ledger.id, name: '衣服', parentId: shoppingId, sortOrder: 2 },
+    ]);
+
     return ledger;
   }),
 

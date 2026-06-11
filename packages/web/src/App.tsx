@@ -5,17 +5,36 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { LoginPage } from './pages/LoginPage';
 import { LedgerListPage } from './pages/LedgerListPage';
 import { TransactionPage } from './pages/TransactionPage';
+import { CategoryPage } from './pages/CategoryPage';
 import './styles/globals.css';
+
+type Page = { type: 'ledgers' } | { type: 'transactions'; ledgerId: string } | { type: 'categories'; ledgerId: string };
 
 function AppContent() {
   const { user } = useAuth();
-  const [selectedLedgerId, setSelectedLedgerId] = useState<string | null>(null);
+  const [page, setPage] = useState<Page>({ type: 'ledgers' });
 
   if (!user) return <LoginPage />;
-  if (selectedLedgerId) {
-    return <TransactionPage ledgerId={selectedLedgerId} onBack={() => setSelectedLedgerId(null)} />;
+
+  switch (page.type) {
+    case 'transactions':
+      return (
+        <TransactionPage
+          ledgerId={page.ledgerId}
+          onBack={() => setPage({ type: 'ledgers' })}
+          onManageCategories={() => setPage({ type: 'categories', ledgerId: page.ledgerId })}
+        />
+      );
+    case 'categories':
+      return (
+        <CategoryPage
+          ledgerId={page.ledgerId}
+          onBack={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
+        />
+      );
+    default:
+      return <LedgerListPage onSelectLedger={(id) => setPage({ type: 'transactions', ledgerId: id })} />;
   }
-  return <LedgerListPage onSelectLedger={setSelectedLedgerId} />;
 }
 
 function App() {

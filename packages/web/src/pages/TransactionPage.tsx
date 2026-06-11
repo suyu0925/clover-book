@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
-import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings } from 'lucide-react';
 
 interface Props {
   ledgerId: string;
   onBack: () => void;
+  onManageCategories: () => void;
 }
 
-export function TransactionPage({ ledgerId, onBack }: Props) {
+export function TransactionPage({ ledgerId, onBack, onManageCategories }: Props) {
   const [showAdd, setShowAdd] = useState(false);
 
   const { data: ledger } = trpc.ledger.get.useQuery({ ledgerId });
@@ -26,6 +27,12 @@ export function TransactionPage({ ledgerId, onBack }: Props) {
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-lg font-semibold flex-1 truncate">{ledger?.name}</h1>
+          <button
+            onClick={onManageCategories}
+            className="p-1.5 text-gray-400 hover:text-gray-600"
+          >
+            <Settings size={20} />
+          </button>
           <button
             onClick={() => setShowAdd(true)}
             className="p-1.5 text-green-600 hover:text-green-700"
@@ -104,6 +111,9 @@ function AddTransactionForm({
   const [amount, setAmount] = useState('');
   const [narration, setNarration] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [categoryId, setCategoryId] = useState('');
+
+  const { data: categories } = trpc.category.list.useQuery({ ledgerId });
 
   // 根据类型获取默认的 from/to 账户
   const assetAccounts = accounts.filter((a) => a.type === 'assets');
@@ -133,6 +143,7 @@ function AddTransactionForm({
       narration: narration || (type === 'expense' ? '支出' : '收入'),
       fromAccountId: from,
       toAccountId: to,
+      ...(categoryId ? { categoryId } : {}),
     });
   };
 
@@ -188,6 +199,25 @@ function AddTransactionForm({
         onChange={(e) => setNarration(e.target.value)}
         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
       />
+
+      {/* 分类选择 */}
+      <select
+        value={categoryId}
+        onChange={(e) => setCategoryId(e.target.value)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+      >
+        <option value="">选择分类（可选）</option>
+        {categories?.map((cat) => (
+          <optgroup key={cat.id} label={cat.name}>
+            {cat.children?.map((child) => (
+              <option key={child.id} value={child.id}>{child.name}</option>
+            ))}
+            {(!cat.children || cat.children.length === 0) && (
+              <option value={cat.id}>{cat.name}</option>
+            )}
+          </optgroup>
+        ))}
+      </select>
 
       {/* 来源账户 */}
       <select

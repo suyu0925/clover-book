@@ -20,6 +20,21 @@ async function assertLedgerAccess(ledgerId: string, userId: string) {
   return member;
 }
 
+/** 获取分类路径（父/子） */
+async function getCategoryPath(categoryId: string): Promise<string> {
+  const cat = await db.query.categories.findFirst({
+    where: eq(schema.categories.id, categoryId),
+  });
+  if (!cat) return '';
+  if (cat.parentId) {
+    const parent = await db.query.categories.findFirst({
+      where: eq(schema.categories.id, cat.parentId),
+    });
+    return parent ? `${parent.name}/${cat.name}` : cat.name;
+  }
+  return cat.name;
+}
+
 const transactionRouter = router({
   create: protectedProcedure.input(createTransactionSchema).mutation(async ({ input, ctx }) => {
     await assertLedgerAccess(input.ledgerId, ctx.user.id);
@@ -70,6 +85,7 @@ const transactionRouter = router({
         meta: {
           id: txn.id,
           created_by: ctx.user.id,
+          ...(input.categoryId ? { category: await getCategoryPath(input.categoryId) } : {}),
         },
         postings: [
           { account: fromAccount?.name || 'Unknown', amount: -input.amount, currency: 'CNY' },
