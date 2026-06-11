@@ -38,7 +38,7 @@ COPY packages/web ./packages/web
 RUN cd packages/web && bun run build
 
 # Build server (Bun bundler)
-RUN cd packages/server && bun build src/index.ts --outdir dist --target bun --external postgres
+RUN cd packages/server && bun build src/index.ts --outdir dist --target bun
 
 # --- Stage 3: Production ---
 FROM oven/bun:1-alpine AS production
