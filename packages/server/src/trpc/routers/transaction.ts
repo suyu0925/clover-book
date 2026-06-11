@@ -67,7 +67,7 @@ const transactionRouter = router({
       offset: input.offset,
     });
 
-    return txns;
+    return { items: txns };
   }),
 
   get: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ input, ctx }) => {

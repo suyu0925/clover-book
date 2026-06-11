@@ -25,6 +25,19 @@ const ledgerRouter = router({
       role: 'owner',
     });
 
+    // 初始化默认账户
+    const today = new Date().toISOString().slice(0, 10);
+    await db.insert(schema.accounts).values([
+      { ledgerId: ledger.id, name: 'Assets:Cash', type: 'assets' as const, displayName: '现金', openingDate: today },
+      { ledgerId: ledger.id, name: 'Assets:Bank', type: 'assets' as const, displayName: '银行卡', openingDate: today },
+      { ledgerId: ledger.id, name: 'Expenses:Food', type: 'expenses' as const, displayName: '餐饮', openingDate: today },
+      { ledgerId: ledger.id, name: 'Expenses:Transport', type: 'expenses' as const, displayName: '交通', openingDate: today },
+      { ledgerId: ledger.id, name: 'Expenses:Shopping', type: 'expenses' as const, displayName: '购物', openingDate: today },
+      { ledgerId: ledger.id, name: 'Expenses:General', type: 'expenses' as const, displayName: '其他支出', openingDate: today },
+      { ledgerId: ledger.id, name: 'Income:Salary', type: 'income' as const, displayName: '工资', openingDate: today },
+      { ledgerId: ledger.id, name: 'Income:Other', type: 'income' as const, displayName: '其他收入', openingDate: today },
+    ]);
+
     return ledger;
   }),
 

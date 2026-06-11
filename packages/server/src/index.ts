@@ -23,7 +23,7 @@ app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOStri
 
 const port = parseInt(process.env.PORT || '3000', 10);
 
-console.log(`🍀 Clover Book server running on http://localhost:${port}`);
+console.log(`\u{1F340} Clover Book server running on http://localhost:${port}`);
 
 export default {
   port,
