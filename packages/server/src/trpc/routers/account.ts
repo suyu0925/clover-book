@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { eq, and } from 'drizzle-orm';
 import { db, schema } from '../../db';
 import { z } from 'zod';
+import { appendAccount } from '../../beancount/file-manager';
 
 /** 检查用户是否有权访问账本 */
 async function assertLedgerAccess(ledgerId: string, userId: string) {
@@ -42,6 +43,21 @@ const accountRouter = router({
       displayName: input.displayName,
       openingDate: today,
     }).returning();
+
+    // 同步到 Beancount 文件
+    const ledger = await db.query.ledgers.findFirst({
+      where: eq(schema.ledgers.id, input.ledgerId),
+    });
+    if (ledger) {
+      await appendAccount(ledger.filePath, {
+        date: today,
+        action: 'open',
+        account: input.name,
+        currencies: ['CNY'],
+        comment: input.displayName,
+      });
+    }
+
     return account;
   }),
 });

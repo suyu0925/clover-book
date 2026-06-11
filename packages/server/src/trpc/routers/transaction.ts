@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { db, schema } from '../../db';
 import { z } from 'zod';
+import { appendTransaction, removeTransaction } from '../../beancount/file-manager';
 
 /** 检查用户是否有权访问账本 */
 async function assertLedgerAccess(ledgerId: string, userId: string) {
@@ -45,6 +46,36 @@ const transactionRouter = router({
       await db.insert(schema.transactionTags).values(
         input.tags.map((tag) => ({ transactionId: txn.id, tag })),
       );
+    }
+
+    // 同步到 Beancount 文件
+    const ledger = await db.query.ledgers.findFirst({
+      where: eq(schema.ledgers.id, input.ledgerId),
+    });
+    if (ledger) {
+      // 查询账户名称
+      const fromAccount = await db.query.accounts.findFirst({
+        where: eq(schema.accounts.id, input.fromAccountId),
+      });
+      const toAccount = await db.query.accounts.findFirst({
+        where: eq(schema.accounts.id, input.toAccountId),
+      });
+
+      await appendTransaction(ledger.filePath, {
+        date: input.date,
+        flag: '*',
+        payee: input.payee,
+        narration: input.narration,
+        tags: input.tags || [],
+        meta: {
+          id: txn.id,
+          created_by: ctx.user.id,
+        },
+        postings: [
+          { account: fromAccount?.name || 'Unknown', amount: -input.amount, currency: 'CNY' },
+          { account: toAccount?.name || 'Unknown', amount: input.amount, currency: 'CNY' },
+        ],
+      });
     }
 
     return txn;
@@ -102,6 +133,14 @@ const transactionRouter = router({
     }
 
     await assertLedgerAccess(txn.ledgerId, ctx.user.id);
+
+    // 同步删除 Beancount 文件中的交易
+    const ledger = await db.query.ledgers.findFirst({
+      where: eq(schema.ledgers.id, txn.ledgerId),
+    });
+    if (ledger) {
+      await removeTransaction(ledger.filePath, txn.id);
+    }
 
     await db.delete(schema.transactions).where(eq(schema.transactions.id, input.id));
     return { success: true };

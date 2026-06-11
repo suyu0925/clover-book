@@ -22,6 +22,7 @@ dist/
 Thumbs.db
 
 # Data (runtime)
+data/
 clover-data/
 
 # Lockfile (bun)

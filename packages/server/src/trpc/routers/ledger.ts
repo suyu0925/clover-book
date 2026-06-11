@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server';
 import { eq, and } from 'drizzle-orm';
 import { db, schema } from '../../db';
 import { z } from 'zod';
+import { initLedgerFile, appendAccounts } from '../../beancount/file-manager';
 
 const ledgerRouter = router({
   create: protectedProcedure.input(createLedgerSchema).mutation(async ({ input, ctx }) => {
@@ -27,7 +28,7 @@ const ledgerRouter = router({
 
     // 初始化默认账户
     const today = new Date().toISOString().slice(0, 10);
-    await db.insert(schema.accounts).values([
+    const defaultAccounts = [
       { ledgerId: ledger.id, name: 'Assets:Cash', type: 'assets' as const, displayName: '现金', openingDate: today },
       { ledgerId: ledger.id, name: 'Assets:Bank', type: 'assets' as const, displayName: '银行卡', openingDate: today },
       { ledgerId: ledger.id, name: 'Expenses:Food', type: 'expenses' as const, displayName: '餐饮', openingDate: today },
@@ -36,7 +37,18 @@ const ledgerRouter = router({
       { ledgerId: ledger.id, name: 'Expenses:General', type: 'expenses' as const, displayName: '其他支出', openingDate: today },
       { ledgerId: ledger.id, name: 'Income:Salary', type: 'income' as const, displayName: '工资', openingDate: today },
       { ledgerId: ledger.id, name: 'Income:Other', type: 'income' as const, displayName: '其他收入', openingDate: today },
-    ]);
+    ];
+    await db.insert(schema.accounts).values(defaultAccounts);
+
+    // 初始化 Beancount 文件
+    await initLedgerFile(filePath, input.name);
+    await appendAccounts(filePath, defaultAccounts.map((a) => ({
+      date: today,
+      action: 'open' as const,
+      account: a.name,
+      currencies: ['CNY'],
+      comment: a.displayName,
+    })));
 
     return ledger;
   }),
