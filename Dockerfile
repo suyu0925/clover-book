@@ -45,17 +45,13 @@ FROM oven/bun:1-alpine AS production
 
 WORKDIR /app
 
-# Install only production dependencies for server
+# Install dependencies (including drizzle-kit needed for schema push at startup)
 COPY package.json bun.lock ./
 COPY packages/core/package.json ./packages/core/
 COPY packages/server/package.json ./packages/server/
 COPY packages/web/package.json ./packages/web/
 
-# We need postgres driver at runtime (not bundled)
-RUN bun install --production --frozen-lockfile
-
-# Install drizzle-kit for schema migrations (devDep, need explicitly)
-RUN bun add -g drizzle-kit
+RUN bun install --frozen-lockfile
 
 # Copy built artifacts
 COPY --from=build /app/packages/server/dist ./server

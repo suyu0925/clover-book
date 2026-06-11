@@ -17,7 +17,7 @@ echo "✅ Database connected"
 # Run database migrations (push schema)
 echo "📦 Pushing database schema..."
 cd /app/packages/server
-drizzle-kit push --force
+bunx drizzle-kit push --force
 cd /app
 
 echo "🚀 Starting server on port ${PORT:-3000}..."
