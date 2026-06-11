@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '../lib/auth';
 import { trpc } from '../lib/trpc';
-import { Plus, BookOpen, LogOut } from 'lucide-react';
+import { Plus, BookOpen, LogOut, Settings } from 'lucide-react';
 
-export function LedgerListPage({ onSelectLedger }: { onSelectLedger: (id: string) => void }) {
+interface Props {
+  onSelectLedger: (id: string) => void;
+  onOpenSettings: () => void;
+}
+
+export function LedgerListPage({ onSelectLedger, onOpenSettings }: Props) {
   const { user, logout } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
@@ -32,6 +37,9 @@ export function LedgerListPage({ onSelectLedger }: { onSelectLedger: (id: string
           <h1 className="text-lg font-bold text-green-700">🍀 Clover Book</h1>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">{user?.displayName}</span>
+            <button onClick={onOpenSettings} className="p-1.5 text-gray-400 hover:text-gray-600" title="设置">
+              <Settings size={18} />
+            </button>
             <button onClick={logout} className="p-1.5 text-gray-400 hover:text-red-500">
               <LogOut size={18} />
             </button>

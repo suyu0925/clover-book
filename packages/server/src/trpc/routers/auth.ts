@@ -5,6 +5,7 @@ import { SignJWT } from 'jose';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '../../db';
 import { JWT_SECRET } from '../context';
+import { z } from 'zod';
 
 const authRouter = router({
   register: publicProcedure.input(registerSchema).mutation(async ({ input }) => {
@@ -67,6 +68,51 @@ const authRouter = router({
       columns: { id: true, username: true, displayName: true, avatarUrl: true },
     });
     return user;
+  }),
+
+  /** 修改密码 */
+  changePassword: protectedProcedure.input(z.object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(6),
+  })).mutation(async ({ input, ctx }) => {
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, ctx.user.id),
+    });
+    if (!user) throw new TRPCError({ code: 'NOT_FOUND', message: '用户不存在' });
+
+    const valid = await Bun.password.verify(input.currentPassword, user.passwordHash);
+    if (!valid) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: '当前密码错误' });
+    }
+
+    const newHash = await Bun.password.hash(input.newPassword, { algorithm: 'argon2id' });
+    await db.update(schema.users)
+      .set({ passwordHash: newHash, updatedAt: new Date() })
+      .where(eq(schema.users.id, ctx.user.id));
+
+    return { success: true };
+  }),
+
+  /** 修改个人资料 */
+  updateProfile: protectedProcedure.input(z.object({
+    displayName: z.string().min(1).max(100).optional(),
+    avatarUrl: z.string().max(500).optional().nullable(),
+  })).mutation(async ({ input, ctx }) => {
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (input.displayName !== undefined) updates.displayName = input.displayName;
+    if (input.avatarUrl !== undefined) updates.avatarUrl = input.avatarUrl;
+
+    const [updated] = await db.update(schema.users)
+      .set(updates)
+      .where(eq(schema.users.id, ctx.user.id))
+      .returning({
+        id: schema.users.id,
+        username: schema.users.username,
+        displayName: schema.users.displayName,
+        avatarUrl: schema.users.avatarUrl,
+      });
+
+    return updated;
   }),
 });
 

@@ -13,6 +13,7 @@ import { TransactionDetailPage } from './pages/TransactionDetailPage';
 import { RecurringPage } from './pages/RecurringPage';
 import { ImportPage } from './pages/ImportPage';
 import { MemberPage } from './pages/MemberPage';
+import { SettingsPage } from './pages/SettingsPage';
 import './styles/globals.css';
 
 type Page =
@@ -25,7 +26,8 @@ type Page =
   | { type: 'transactionDetail'; ledgerId: string; transactionId: string }
   | { type: 'recurring'; ledgerId: string }
   | { type: 'import'; ledgerId: string }
-  | { type: 'members'; ledgerId: string };
+  | { type: 'members'; ledgerId: string }
+  | { type: 'settings' };
 
 function AppContent() {
   const { user } = useAuth();
@@ -107,8 +109,19 @@ function AppContent() {
           onBack={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
         />
       );
+    case 'settings':
+      return (
+        <SettingsPage
+          onBack={() => setPage({ type: 'ledgers' })}
+        />
+      );
     default:
-      return <LedgerListPage onSelectLedger={(id) => setPage({ type: 'transactions', ledgerId: id })} />;
+      return (
+        <LedgerListPage
+          onSelectLedger={(id) => setPage({ type: 'transactions', ledgerId: id })}
+          onOpenSettings={() => setPage({ type: 'settings' })}
+        />
+      );
   }
 }
 
