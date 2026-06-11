@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { trpc } from '../lib/trpc';
-import { ArrowLeft, Pencil, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Save, X, Paperclip, Upload, FileText, Image as ImageIcon } from 'lucide-react';
 
 interface Props {
   transactionId: string;
@@ -298,7 +298,125 @@ export function TransactionDetailPage({ transactionId, ledgerId, onBack, onDelet
             <p className="text-xs text-gray-500">{new Date(txn.createdAt).toLocaleString()}</p>
           </div>
         </div>
+
+        {/* 附件区域 */}
+        <AttachmentSection transactionId={transactionId} ledgerId={ledgerId} />
       </main>
+    </div>
+  );
+}
+
+/* ========== 附件管理组件 ========== */
+function AttachmentSection({ transactionId, ledgerId }: { transactionId: string; ledgerId: string }) {
+  const { data: attachments, refetch } = trpc.attachment.list.useQuery({ transactionId });
+  const deleteMutation = trpc.attachment.delete.useMutation({ onSuccess: () => refetch() });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('transactionId', transactionId);
+      formData.append('ledgerId', ledgerId);
+
+      const token = localStorage.getItem('accessToken');
+      const resp = await fetch('/api/attachments/upload', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!resp.ok) throw new Error('上传失败');
+      refetch();
+    } catch (err) {
+      alert('上传失败: ' + (err instanceof Error ? err.message : '未知错误'));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDelete = (id: string, fileName: string) => {
+    if (confirm(`确定删除附件 "${fileName}"？`)) {
+      deleteMutation.mutate({ id });
+    }
+  };
+
+  const isImage = (mime: string) => mime.startsWith('image/');
+
+  return (
+    <div className="mt-4 bg-white rounded-lg shadow">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Paperclip size={16} className="text-gray-400" />
+          <span className="text-sm font-medium text-gray-700">附件</span>
+          {attachments && attachments.length > 0 && (
+            <span className="text-xs text-gray-400">({attachments.length})</span>
+          )}
+        </div>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 disabled:opacity-50"
+        >
+          <Upload size={14} />
+          {uploading ? '上传中...' : '上传'}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleUpload}
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+        />
+      </div>
+
+      {attachments && attachments.length > 0 ? (
+        <div className="divide-y divide-gray-50">
+          {attachments.map((att) => (
+            <div key={att.id} className="px-4 py-2 flex items-center gap-3">
+              {isImage(att.mimeType) ? (
+                <a href={`/api/attachments/${att.id}`} target="_blank" rel="noreferrer">
+                  <img
+                    src={`/api/attachments/${att.id}`}
+                    alt={att.fileName}
+                    className="w-12 h-12 object-cover rounded border border-gray-200"
+                  />
+                </a>
+              ) : (
+                <a href={`/api/attachments/${att.id}`} target="_blank" rel="noreferrer"
+                   className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded border border-gray-200">
+                  <FileText size={20} className="text-gray-400" />
+                </a>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-700 truncate">{att.fileName}</p>
+                <p className="text-xs text-gray-400">
+                  {att.fileSize < 1024
+                    ? `${att.fileSize} B`
+                    : att.fileSize < 1024 * 1024
+                    ? `${(att.fileSize / 1024).toFixed(1)} KB`
+                    : `${(att.fileSize / 1024 / 1024).toFixed(1)} MB`}
+                </p>
+              </div>
+              <button
+                onClick={() => handleDelete(att.id, att.fileName)}
+                className="p-1 text-gray-300 hover:text-red-500"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="px-4 py-6 text-center text-xs text-gray-400">
+          暂无附件，点击上传按钮添加
+        </div>
+      )}
     </div>
   );
 }
