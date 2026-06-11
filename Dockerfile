@@ -54,6 +54,9 @@ COPY packages/web/package.json ./packages/web/
 # We need postgres driver at runtime (not bundled)
 RUN bun install --production --frozen-lockfile
 
+# Install drizzle-kit for schema migrations (devDep, need explicitly)
+RUN bun add -g drizzle-kit
+
 # Copy built artifacts
 COPY --from=build /app/packages/server/dist ./server
 COPY --from=build /app/packages/web/dist ./web
