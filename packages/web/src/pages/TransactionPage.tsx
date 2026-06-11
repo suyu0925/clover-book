@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
-import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings, Wallet, BarChart3, PiggyBank } from 'lucide-react';
+import { ArrowLeft, Plus, ArrowDownLeft, ArrowUpRight, Settings, Wallet, BarChart3, PiggyBank, Repeat } from 'lucide-react';
 
 interface Props {
   ledgerId: string;
@@ -9,10 +9,11 @@ interface Props {
   onManageAccounts: () => void;
   onViewStats: () => void;
   onViewBudget: () => void;
+  onViewRecurring: () => void;
   onSelectTransaction: (id: string) => void;
 }
 
-export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts, onViewStats, onViewBudget, onSelectTransaction }: Props) {
+export function TransactionPage({ ledgerId, onBack, onManageCategories, onManageAccounts, onViewStats, onViewBudget, onViewRecurring, onSelectTransaction }: Props) {
   const [showAdd, setShowAdd] = useState(false);
 
   const { data: ledger } = trpc.ledger.get.useQuery({ ledgerId });
@@ -44,6 +45,13 @@ export function TransactionPage({ ledgerId, onBack, onManageCategories, onManage
             title="预算管理"
           >
             <PiggyBank size={20} />
+          </button>
+          <button
+            onClick={onViewRecurring}
+            className="p-1.5 text-gray-400 hover:text-gray-600"
+            title="周期性交易"
+          >
+            <Repeat size={20} />
           </button>
           <button
             onClick={onManageAccounts}

@@ -10,6 +10,7 @@ import { AccountPage } from './pages/AccountPage';
 import { StatsPage } from './pages/StatsPage';
 import { BudgetPage } from './pages/BudgetPage';
 import { TransactionDetailPage } from './pages/TransactionDetailPage';
+import { RecurringPage } from './pages/RecurringPage';
 import './styles/globals.css';
 
 type Page =
@@ -19,7 +20,8 @@ type Page =
   | { type: 'accounts'; ledgerId: string }
   | { type: 'stats'; ledgerId: string }
   | { type: 'budget'; ledgerId: string }
-  | { type: 'transactionDetail'; ledgerId: string; transactionId: string };
+  | { type: 'transactionDetail'; ledgerId: string; transactionId: string }
+  | { type: 'recurring'; ledgerId: string };
 
 function AppContent() {
   const { user } = useAuth();
@@ -37,6 +39,7 @@ function AppContent() {
           onManageAccounts={() => setPage({ type: 'accounts', ledgerId: page.ledgerId })}
           onViewStats={() => setPage({ type: 'stats', ledgerId: page.ledgerId })}
           onViewBudget={() => setPage({ type: 'budget', ledgerId: page.ledgerId })}
+          onViewRecurring={() => setPage({ type: 'recurring', ledgerId: page.ledgerId })}
           onSelectTransaction={(txId) => setPage({ type: 'transactionDetail', ledgerId: page.ledgerId, transactionId: txId })}
         />
       );
@@ -75,6 +78,13 @@ function AppContent() {
           ledgerId={page.ledgerId}
           onBack={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
           onDeleted={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
+        />
+      );
+    case 'recurring':
+      return (
+        <RecurringPage
+          ledgerId={page.ledgerId}
+          onBack={() => setPage({ type: 'transactions', ledgerId: page.ledgerId })}
         />
       );
     default:
