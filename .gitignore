@@ -25,5 +25,10 @@ Thumbs.db
 data/
 clover-data/
 
+# Private test fixtures (real user data, never commit)
+packages/server/tests/fixtures/*.xls
+packages/server/tests/fixtures/*.xlsx
+packages/server/tests/fixtures/*.csv.private
+
 # Lockfile (bun)
 # bun.lockb is committed for reproducible builds

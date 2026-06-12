@@ -182,7 +182,7 @@
     ↓
 调用 trpc.import.execute 传入统一格式 JSON
     ↓
-后端逐行写入 PostgreSQL + Beancount 文件
+后端逐行写入 Beancount 文件 + PostgreSQL 查询缓存
 ```
 
 ### 5.2 各 Sheet 映射到 Clover Book 交易类型

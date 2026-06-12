@@ -36,6 +36,20 @@ const accountRouter = router({
   })).mutation(async ({ input, ctx }) => {
     await assertLedgerAccess(input.ledgerId, ctx.user.id);
     const today = new Date().toISOString().slice(0, 10);
+    const ledger = await db.query.ledgers.findFirst({
+      where: eq(schema.ledgers.id, input.ledgerId),
+    });
+    if (!ledger) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: '账本不存在' });
+    }
+    const header = await appendAccount(ledger.filePath, {
+      date: today,
+      action: 'open',
+      account: input.name,
+      currencies: ['CNY'],
+      comment: input.displayName,
+    });
+
     const [account] = await db.insert(schema.accounts).values({
       ledgerId: input.ledgerId,
       name: input.name,
@@ -44,19 +58,9 @@ const accountRouter = router({
       openingDate: today,
     }).returning();
 
-    // 同步到 Beancount 文件
-    const ledger = await db.query.ledgers.findFirst({
-      where: eq(schema.ledgers.id, input.ledgerId),
-    });
-    if (ledger) {
-      await appendAccount(ledger.filePath, {
-        date: today,
-        action: 'open',
-        account: input.name,
-        currencies: ['CNY'],
-        comment: input.displayName,
-      });
-    }
+    await db.update(schema.ledgers)
+      .set({ version: header.version, updatedAt: new Date(header.lastModified) })
+      .where(eq(schema.ledgers.id, input.ledgerId));
 
     return account;
   }),
@@ -103,18 +107,22 @@ const accountRouter = router({
       throw new TRPCError({ code: 'BAD_REQUEST', message: '账户已关闭' });
     }
 
+    const ledger = await db.query.ledgers.findFirst({
+      where: eq(schema.ledgers.id, input.ledgerId),
+    });
+    if (!ledger) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: '账本不存在' });
+    }
+    const header = await closeAccount(ledger.filePath, account.name);
+
     const [updated] = await db.update(schema.accounts)
       .set({ isClosed: true })
       .where(eq(schema.accounts.id, input.id))
       .returning();
 
-    // 同步 close 指令到 Beancount 文件
-    const ledger = await db.query.ledgers.findFirst({
-      where: eq(schema.ledgers.id, input.ledgerId),
-    });
-    if (ledger) {
-      await closeAccount(ledger.filePath, account.name);
-    }
+    await db.update(schema.ledgers)
+      .set({ version: header.version, updatedAt: new Date(header.lastModified) })
+      .where(eq(schema.ledgers.id, input.ledgerId));
 
     return updated;
   }),

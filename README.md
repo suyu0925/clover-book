@@ -176,7 +176,7 @@ Hono Server (Bun)
 ```
 
 **数据流原则：**
-- 所有写操作：先更新 PostgreSQL，再同步写入 Beancount 文件
+- 所有写操作：先写入 Beancount 文件，再更新 PostgreSQL 查询缓存
 - 所有读操作：从 PostgreSQL 查询（性能优先）
 - Beancount 文件是真相源：若出现不一致，可通过导入功能重新同步
 

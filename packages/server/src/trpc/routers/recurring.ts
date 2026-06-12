@@ -153,9 +153,42 @@ const recurringRouter = router({
     }
 
     const date = recurring.nextExecution;
+    if (!recurring.fromAccountId || !recurring.toAccountId) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: '周期性交易缺少分录账户' });
+    }
 
-    // 创建实际交易
+    const ledger = await db.query.ledgers.findFirst({
+      where: eq(schema.ledgers.id, recurring.ledgerId),
+    });
+    if (!ledger) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: '账本不存在' });
+    }
+    const fromAcc = await db.query.accounts.findFirst({
+      where: and(eq(schema.accounts.id, recurring.fromAccountId), eq(schema.accounts.ledgerId, recurring.ledgerId)),
+    });
+    const toAcc = await db.query.accounts.findFirst({
+      where: and(eq(schema.accounts.id, recurring.toAccountId), eq(schema.accounts.ledgerId, recurring.ledgerId)),
+    });
+    if (!fromAcc || !toAcc) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: '账户不存在或不属于此账本' });
+    }
+    const amount = parseFloat(recurring.amount);
+    const transactionId = crypto.randomUUID();
+
+    const header = await appendTransaction(ledger.filePath, {
+      date,
+      flag: '*',
+      narration: recurring.narration || recurring.name,
+      tags: [],
+      meta: { id: transactionId, created_by: ctx.user.id, recurring: recurring.id },
+      postings: [
+        { account: fromAcc.name, amount: -amount, currency: 'CNY' },
+        { account: toAcc.name, amount, currency: 'CNY' },
+      ],
+    });
+
     const [txn] = await db.insert(schema.transactions).values({
+      id: transactionId,
       ledgerId: recurring.ledgerId,
       date,
       type: recurring.type,
@@ -165,40 +198,10 @@ const recurringRouter = router({
       createdBy: ctx.user.id,
     }).returning();
 
-    // 创建分录
-    if (recurring.fromAccountId && recurring.toAccountId) {
-      const amount = parseFloat(recurring.amount);
-      await db.insert(schema.postings).values([
-        { transactionId: txn.id, accountId: recurring.fromAccountId, amount: (-amount).toString(), currency: 'CNY' },
-        { transactionId: txn.id, accountId: recurring.toAccountId, amount: amount.toString(), currency: 'CNY' },
-      ]);
-    }
-
-    // 同步到 Beancount 文件
-    const ledger = await db.query.ledgers.findFirst({
-      where: eq(schema.ledgers.id, recurring.ledgerId),
-    });
-    if (ledger && recurring.fromAccountId && recurring.toAccountId) {
-      const fromAcc = await db.query.accounts.findFirst({
-        where: eq(schema.accounts.id, recurring.fromAccountId),
-      });
-      const toAcc = await db.query.accounts.findFirst({
-        where: eq(schema.accounts.id, recurring.toAccountId),
-      });
-      const amount = parseFloat(recurring.amount);
-
-      await appendTransaction(ledger.filePath, {
-        date,
-        flag: '*',
-        narration: recurring.narration || recurring.name,
-        tags: [],
-        meta: { id: txn.id, created_by: ctx.user.id, recurring: recurring.id },
-        postings: [
-          { account: fromAcc?.name || 'Unknown', amount: -amount, currency: 'CNY' },
-          { account: toAcc?.name || 'Unknown', amount, currency: 'CNY' },
-        ],
-      });
-    }
+    await db.insert(schema.postings).values([
+      { transactionId: txn.id, accountId: recurring.fromAccountId, amount: (-amount).toString(), currency: 'CNY' },
+      { transactionId: txn.id, accountId: recurring.toAccountId, amount: amount.toString(), currency: 'CNY' },
+    ]);
 
     // 更新周期性交易状态
     const nextExecution = calcNextExecution(date, recurring.frequency);
@@ -211,6 +214,9 @@ const recurringRouter = router({
       nextExecution,
       ...(shouldDeactivate ? { isActive: false } : {}),
     }).where(eq(schema.recurringTransactions.id, input.id));
+    await db.update(schema.ledgers)
+      .set({ version: header.version, updatedAt: new Date(header.lastModified) })
+      .where(eq(schema.ledgers.id, recurring.ledgerId));
 
     return txn;
   }),

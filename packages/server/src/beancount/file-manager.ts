@@ -82,10 +82,10 @@ export async function readLedgerFile(relativePath: string): Promise<BeancountFil
 export async function appendTransaction(
   relativePath: string,
   txn: TransactionDirective
-): Promise<void> {
+): Promise<BeancountFile['header']> {
   const absPath = resolveFilePath(relativePath);
 
-  await withFileLock(absPath, async () => {
+  return withFileLock(absPath, async () => {
     const content = await readFile(absPath, 'utf-8');
     const file = parse(content);
 
@@ -95,6 +95,7 @@ export async function appendTransaction(
     file.transactions.push(txn);
 
     await writeFile(absPath, serialize(file), 'utf-8');
+    return file.header;
   });
 }
 
@@ -104,10 +105,10 @@ export async function appendTransaction(
 export async function removeTransaction(
   relativePath: string,
   transactionId: string
-): Promise<void> {
+): Promise<BeancountFile['header']> {
   const absPath = resolveFilePath(relativePath);
 
-  await withFileLock(absPath, async () => {
+  return withFileLock(absPath, async () => {
     const content = await readFile(absPath, 'utf-8');
     const file = parse(content);
 
@@ -118,6 +119,7 @@ export async function removeTransaction(
     file.header.lastModified = new Date().toISOString();
 
     await writeFile(absPath, serialize(file), 'utf-8');
+    return file.header;
   });
 }
 
@@ -128,10 +130,10 @@ export async function updateTransaction(
   relativePath: string,
   transactionId: string,
   txn: TransactionDirective
-): Promise<void> {
+): Promise<BeancountFile['header']> {
   const absPath = resolveFilePath(relativePath);
 
-  await withFileLock(absPath, async () => {
+  return withFileLock(absPath, async () => {
     const content = await readFile(absPath, 'utf-8');
     const file = parse(content);
 
@@ -145,6 +147,7 @@ export async function updateTransaction(
     file.header.lastModified = new Date().toISOString();
 
     await writeFile(absPath, serialize(file), 'utf-8');
+    return file.header;
   });
 }
 
@@ -154,10 +157,10 @@ export async function updateTransaction(
 export async function appendAccount(
   relativePath: string,
   account: AccountDirective
-): Promise<void> {
+): Promise<BeancountFile['header']> {
   const absPath = resolveFilePath(relativePath);
 
-  await withFileLock(absPath, async () => {
+  return withFileLock(absPath, async () => {
     const content = await readFile(absPath, 'utf-8');
     const file = parse(content);
 
@@ -166,6 +169,7 @@ export async function appendAccount(
     file.header.lastModified = new Date().toISOString();
 
     await writeFile(absPath, serialize(file), 'utf-8');
+    return file.header;
   });
 }
 
@@ -175,10 +179,10 @@ export async function appendAccount(
 export async function appendAccounts(
   relativePath: string,
   accounts: AccountDirective[]
-): Promise<void> {
+): Promise<BeancountFile['header']> {
   const absPath = resolveFilePath(relativePath);
 
-  await withFileLock(absPath, async () => {
+  return withFileLock(absPath, async () => {
     const content = await readFile(absPath, 'utf-8');
     const file = parse(content);
 
@@ -187,6 +191,7 @@ export async function appendAccounts(
     file.header.lastModified = new Date().toISOString();
 
     await writeFile(absPath, serialize(file), 'utf-8');
+    return file.header;
   });
 }
 
@@ -196,10 +201,10 @@ export async function appendAccounts(
 export async function closeAccount(
   relativePath: string,
   accountName: string
-): Promise<void> {
+): Promise<BeancountFile['header']> {
   const absPath = resolveFilePath(relativePath);
 
-  await withFileLock(absPath, async () => {
+  return withFileLock(absPath, async () => {
     const content = await readFile(absPath, 'utf-8');
     const file = parse(content);
 
@@ -214,5 +219,6 @@ export async function closeAccount(
     file.header.lastModified = new Date().toISOString();
 
     await writeFile(absPath, serialize(file), 'utf-8');
+    return file.header;
   });
 }

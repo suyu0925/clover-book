@@ -145,7 +145,7 @@ users
 | 表 | 重要字段 | 说明 |
 |----|----------|------|
 | `ledgers` | `filePath` | 对应 Beancount 文件路径（相对 `DATA_DIR`） |
-| `transactions` | `beancountLine` | 记录在 `.beancount` 文件中的行号，用于定位修改 |
+| `transactions` | `id` | 写入 Beancount 元数据 `id`，用于定位修改和缓存重建 |
 | `postings` | `accountId`, `amount` | 复式记账借贷分录，一笔交易至少两条 posting |
 | `categories` | `parentId` | 自引用实现两级分类，`parentId=null` 为一级 |
 
@@ -299,26 +299,33 @@ Token 存在 `localStorage.getItem('accessToken')`。在 `lib/trpc.ts` 的 `head
 | `appendTransaction()` | 创建交易 | 追加到文件末尾，返回行号 |
 | `updateTransaction()` | 更新交易 | 按行号定位，替换对应行 |
 | `deleteTransaction()` | 删除交易 | 按行号删除对应行 |
-| `syncFromFile()` | 导入/修复 | 解析整个文件，同步到 DB |
+| `rebuildLedgerCache()` | 导入/修复 | 解析整个文件，同步到账本的 DB 缓存 |
 
 ### 数据流
 
 ```
 创建交易：
   前端 → trpc.transaction.create
-    → 写入 PostgreSQL（transactions + postings）
     → BeancountFileManager.appendTransaction()
-    → 更新 transactions.beancountLine = 返回的行号
+    → 写入 PostgreSQL 查询缓存（transactions + postings + tags）
+    → 更新 ledgers.version
 
 修改交易：
   前端 → trpc.transaction.update
-    → 更新 PostgreSQL
-    → BeancountFileManager.updateTransaction(beancountLine, newContent)
+    → 计算目标交易和分录
+    → BeancountFileManager.updateTransaction(transactionId, newContent)
+    → 更新 PostgreSQL 查询缓存
 
 删除交易：
   前端 → trpc.transaction.delete
-    → 删除 PostgreSQL 记录
-    → BeancountFileManager.deleteTransaction(beancountLine)
+    → BeancountFileManager.deleteTransaction(transactionId)
+    → 删除 PostgreSQL 查询缓存记录
+
+缓存重建：
+  前端/维护工具 → trpc.ledger.rebuildCache
+    → 解析 Beancount 文件
+    → 重建该账本的 accounts / transactions / postings / transaction_tags 缓存
+    → 保留附件等非 Beancount 源数据
 ```
 
 ### Beancount 文件格式

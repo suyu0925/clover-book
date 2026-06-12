@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { db, schema } from '../../db';
 import { z } from 'zod';
 import { initLedgerFile, appendAccounts } from '../../beancount/file-manager';
+import { rebuildLedgerCache } from '../../beancount/sync';
 
 const ledgerRouter = router({
   create: protectedProcedure.input(createLedgerSchema).mutation(async ({ input, ctx }) => {
@@ -137,6 +138,20 @@ const ledgerRouter = router({
 
     await db.delete(schema.ledgers).where(eq(schema.ledgers.id, input.ledgerId));
     return { success: true };
+  }),
+
+  rebuildCache: protectedProcedure.input(z.object({ ledgerId: z.string().uuid() })).mutation(async ({ input, ctx }) => {
+    const member = await db.query.ledgerMembers.findFirst({
+      where: and(
+        eq(schema.ledgerMembers.ledgerId, input.ledgerId),
+        eq(schema.ledgerMembers.userId, ctx.user.id),
+      ),
+    });
+    if (!member) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: '无权操作此账本' });
+    }
+
+    return rebuildLedgerCache(input.ledgerId);
   }),
 
   share: protectedProcedure.input(shareLedgerSchema).mutation(async ({ input, ctx }) => {

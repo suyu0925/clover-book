@@ -209,9 +209,6 @@ const importRouter = router({
     const accountMap = new Map(accounts.map((a) => [a.displayName, a.id]));
     accountMap.set(accounts.find(a => a.id === input.defaultFromAccountId)?.displayName || '', input.defaultFromAccountId);
 
-    const fromAcc = accounts.find(a => a.id === input.defaultFromAccountId);
-    const toAcc = accounts.find(a => a.id === input.defaultToAccountId);
-
     let imported = 0;
     let skipped = 0;
 
@@ -220,8 +217,29 @@ const importRouter = router({
         // 尝试匹配账户
         const fromAccountId = (row.fromAccount && accountMap.get(row.fromAccount)) || input.defaultFromAccountId;
         const toAccountId = (row.toAccount && accountMap.get(row.toAccount)) || input.defaultToAccountId;
+        const fromAccount = accounts.find((a) => a.id === fromAccountId);
+        const toAccount = accounts.find((a) => a.id === toAccountId);
+        if (!fromAccount || !toAccount || !ledger) {
+          skipped++;
+          continue;
+        }
+        const transactionId = crypto.randomUUID();
+
+        const header = await appendTransaction(ledger.filePath, {
+          date: row.date,
+          flag: '*',
+          payee: row.payee,
+          narration: row.narration,
+          tags: row.tags || [],
+          meta: { id: transactionId, created_by: ctx.user.id, source: 'import' },
+          postings: [
+            { account: fromAccount.name, amount: -row.amount, currency: 'CNY' },
+            { account: toAccount.name, amount: row.amount, currency: 'CNY' },
+          ],
+        });
 
         const [txn] = await db.insert(schema.transactions).values({
+          id: transactionId,
           ledgerId: input.ledgerId,
           date: row.date,
           type: row.type,
@@ -242,21 +260,9 @@ const importRouter = router({
           );
         }
 
-        // 同步到 Beancount
-        if (ledger) {
-          await appendTransaction(ledger.filePath, {
-            date: row.date,
-            flag: '*',
-            payee: row.payee,
-            narration: row.narration,
-            tags: row.tags || [],
-            meta: { id: txn.id, created_by: ctx.user.id, source: 'import' },
-            postings: [
-              { account: fromAcc?.name || 'Unknown', amount: -row.amount, currency: 'CNY' },
-              { account: toAcc?.name || 'Unknown', amount: row.amount, currency: 'CNY' },
-            ],
-          });
-        }
+        await db.update(schema.ledgers)
+          .set({ version: header.version, updatedAt: new Date(header.lastModified) })
+          .where(eq(schema.ledgers.id, input.ledgerId));
 
         imported++;
       } catch {
